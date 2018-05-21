@@ -21,6 +21,7 @@ import traceback
 import six
 import pylibemu
 from .Debugger import Debugger
+import v8py
 
 log = logging.getLogger("Thug")
 
@@ -87,53 +88,53 @@ class Shellcode(object):
                 pass
 
     def run(self):
-        with Debugger() as dbg:
-            dbg._context = self.ctxt
-            # dbg.debugBreak()
+        dbg = Debugger(self.ctxt)
+        dbg._context = self.ctxt
+        # dbg.debugBreak()
 
+        try:
+            result = self.ctxt.eval(v8py.Script(str(self.script)))
+        except (UnicodeDecodeError, TypeError):
             try:
-                result = self.ctxt.eval(self.script)
-            except (UnicodeDecodeError, TypeError):
-                try:
-                    enc = log.Encoding.detect(self.script)
-                    result = self.ctxt.eval(self.script.decode(enc['encoding']))
-                except Exception:
-                    log.ThugLogging.log_warning(traceback.format_exc())
-                    return None
+                enc = log.Encoding.detect(self.script)
+                result = self.ctxt.eval(self.script.decode(enc['encoding']))
             except Exception:
                 log.ThugLogging.log_warning(traceback.format_exc())
                 return None
+        except Exception:
+            log.ThugLogging.log_warning(traceback.format_exc())
+            return None
 
-            names = [p['name'] for p in self.ast.names]
-            for name in names:
-                s = getattr(self.ctxt.locals, name, None)
+        names = [p['name'] for p in self.ast.names]
+        for name in names:
+            s = getattr(self.ctxt.locals, name, None)
 
-                if not s:
-                    continue
+            if not s:
+                continue
 
-                if not isinstance(s, six.string_types):
-                    continue
+            if not isinstance(s, six.string_types):
+                continue
 
-                log.debug("[Shellcode] Testing variable: %s", name)
-                self.emu.run(s)
+            log.debug("[Shellcode] Testing variable: %s", name)
+            self.emu.run(s)
 
-                if self.emu.emu_profile_output:
-                    try:
-                        encoded_sc = s.encode('unicode-escape')
-                    except Exception:
-                        encoded_sc = "Unable to encode shellcode"
+            if self.emu.emu_profile_output:
+                try:
+                    encoded_sc = s.encode('unicode-escape')
+                except Exception:
+                    encoded_sc = "Unable to encode shellcode"
 
-                    snippet = log.ThugLogging.add_shellcode_snippet(encoded_sc,
-                                                                    "Assembly",
-                                                                    "Shellcode")
+                snippet = log.ThugLogging.add_shellcode_snippet(encoded_sc,
+                                                                "Assembly",
+                                                                "Shellcode")
 
-                    log.ThugLogging.add_behavior_warn("[Shellcode Profile] {}".format(self.emu.emu_profile_output),
-                                                      snippet = snippet,
-                                                      method  = "Static Analysis")
+                log.ThugLogging.add_behavior_warn("[Shellcode Profile] {}".format(self.emu.emu_profile_output),
+                                                  snippet = snippet,
+                                                  method  = "Static Analysis")
 
-                    self.check_URLDownloadToFile(self.emu)
+                self.check_URLDownloadToFile(self.emu)
 
-                self.emu.free()
-                self.search_url(s)
+            self.emu.free()
+            self.search_url(s)
 
         return result

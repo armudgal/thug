@@ -53,8 +53,11 @@ from .w3c_bindings import w3c_bindings
 sched = sched.scheduler(time.time, time.sleep)
 log = logging.getLogger("Thug")
 
+import v8py
+
 
 class Window(JSClass):
+    @v8py.hidden
     class Timer(object):
         def __init__(self, window, code, delay, repeat, lang = 'JavaScript'):
             self.window  = window
@@ -911,25 +914,26 @@ class Window(JSClass):
     def context(self):
         # if not hasattr(self, '_context'):
         if '_context' not in self.__dict__:
-            self._context = PyV8.JSContext(self, extensions = log.JSExtensions)
-            with self._context as ctxt:
-                thug_js = os.path.join(thug.__configuration_path__, 'scripts', "thug.js")
-                ctxt.eval(open(thug_js, 'r').read())
+            self._context = v8py.Context(self)
+            # self._context = PyV8.JSContext(self, extensions = log.JSExtensions)
+            ctxt = self._context # with self._context as ctxt:
+            thug_js = os.path.join(thug.__configuration_path__, 'scripts', "thug.js")
+            ctxt.eval(open(thug_js, 'r').read())
 
-                if log.ThugOpts.Personality.isIE():
-                    if log.ThugOpts.Personality.browserMajorVersion < 8:
-                        storage_js = os.path.join(thug.__configuration_path__, 'scripts', "storage.js")
-                        ctxt.eval(open(storage_js, 'r').read())
+            if log.ThugOpts.Personality.isIE():
+                if log.ThugOpts.Personality.browserMajorVersion < 8:
+                    storage_js = os.path.join(thug.__configuration_path__, 'scripts', "storage.js")
+                    ctxt.eval(open(storage_js, 'r').read())
 
-                    if log.ThugOpts.Personality.browserMajorVersion < 9:
-                        date_js = os.path.join(thug.__configuration_path__, 'scripts', "date.js")
-                        ctxt.eval(open(date_js, 'r').read())
+                if log.ThugOpts.Personality.browserMajorVersion < 9:
+                    date_js = os.path.join(thug.__configuration_path__, 'scripts', "date.js")
+                    ctxt.eval(open(date_js, 'r').read())
 
-                hooks_folder = os.path.join(thug.__configuration_path__, 'hooks')
-                for hook in sorted([h for h in os.listdir(hooks_folder) if h.endswith('.js')]):
-                    ctxt.eval(open(os.path.join(hooks_folder, hook), 'r').read())
+            hooks_folder = os.path.join(thug.__configuration_path__, 'hooks')
+            for hook in sorted([h for h in os.listdir(hooks_folder) if h.endswith('.js')]):
+                ctxt.eval(open(os.path.join(hooks_folder, hook), 'r').read())
 
-                PyV8.JSEngine.collect()
+            # PyV8.JSEngine.collect()
 
         return self._context
 
@@ -945,6 +949,7 @@ class Window(JSClass):
             if log.ThugOpts.code_logging:
                 log.ThugLogging.add_code_snippet(script, 'Javascript', 'Contained_Inside')
         except Exception:
+            log.warning("Exc1")
             pass
 
         if tag:
@@ -961,19 +966,19 @@ class Window(JSClass):
             else:
                 self.doc.current = self.doc.doc.contents[-1]
 
-        with self.context as ctxt:
-            try:
-                ast = AST(script, self)
-            except Exception:
-                log.warning(traceback.format_exc())
-                return result
+        ctxt = self.context # with self.context as ctxt:
+        try:
+            ast = AST(script, self)
+        except Exception:
+            log.warning(traceback.format_exc())
+            return result
 
-            if log.ThugOpts.Personality.isIE():
-                cc = CCInterpreter()
-                script = cc.run(script)
+        if log.ThugOpts.Personality.isIE():
+            cc = CCInterpreter()
+            script = cc.run(script)
 
-            shellcode = Shellcode.Shellcode(self, ctxt, ast, script)
-            result    = shellcode.run()
+        shellcode = Shellcode.Shellcode(self, ctxt, ast, script)
+        result    = shellcode.run()
 
         return result
 

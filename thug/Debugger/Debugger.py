@@ -20,24 +20,26 @@ import os
 import logging
 import PyV8
 import thug
+import v8py
 
 log = logging.getLogger("Thug")
 
 
-class Debugger(PyV8.JSDebugger):
-    def __init__(self):
-        PyV8.JSDebugger.__init__(self)
+class Debugger(v8py.debug.Debugger):
+    def __init__(self, ctxt):
+        # PyV8.JSDebugger.__init__(self)
+        v8py.debug.Debugger.__init__(self, ctxt)
         # self.evalContext = PyV8.JSContext()
 
-    def __enter__(self):
+    #def __enter__(self):
         script_filename = os.path.join(thug.__configuration_path__, 'scripts', 'd8.js')
-        with self.context as ctxt:
-            ctxt.eval(open(script_filename, 'r').read())
+        #with self.context as ctxt:
+        ctxt.eval(open(script_filename, 'r').read())
 
-        PyV8.JSEngine.collect()
+        # PyV8.JSEngine.collect()
         # self.setEnabled(True)
 
-        return PyV8.JSDebugger.__enter__(self)
+        # return PyV8.JSDebugger.__enter__(self)
 
     def onMessage(self, msg):
         log.debug("Debug message: %s", msg)

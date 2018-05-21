@@ -29,7 +29,6 @@ class JSClass(object):
 
     def __setattr__(self, name, value):
         prop = self.__dict__.setdefault('__properties__', {}).get(name, None)
-
         if prop and isinstance(prop[1], collections.Callable):
             return prop[1](value)
 
